@@ -1,3 +1,7 @@
 # Set an authorized teammate's username, then restart the backend.
 # Leave empty to disable web-based user management.
 admin_username = ""
+
+# Require this shared password at sign-in, on top of an allowlisted username.
+# Leave empty to let allowlisted usernames sign in without a password.
+password = ""

@@ -19,16 +19,19 @@ function NavLink({ to, navigate, children, ...props }) {
 
 function Login({ onLogin, expired }) {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordRequired, setPasswordRequired] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  useEffect(() => { api('/login').then(info => setPasswordRequired(info.password_required)).catch(() => {}); }, []);
   async function submit(event) {
     event.preventDefault(); setBusy(true); setError('');
-    try { await api('/login', { method: 'POST', json: { username } }); await onLogin(); }
+    try { await api('/login', { method: 'POST', json: { username, password } }); await onLogin(); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
   return <main className="login"><div className="login-content"><div className="wordmark"><img src={kissLogo} alt="" width="32" height="32" />KISS</div><p className="muted">Team workspace</p><h1>Pick up where<br />your team left off.</h1><p className="login-intro">Hosts, evidence, and findings.<br />One shared place for the competition.</p>
-    <form onSubmit={submit}><label className="field">Username<input autoFocus autoComplete="username" required value={username} onChange={e => setUsername(e.target.value)} placeholder="Your authorized username" maxLength={64} /></label><button className="primary" disabled={busy}>{busy ? 'Signing in…' : 'Enter workspace'}</button>{error && <p role="alert" className="error">{error}</p>}{expired && <p className="notice">Your session ended. Sign in again; local drafts are kept in this tab.</p>}</form><p className="hint">Your server admin manages the username list.<br />For your team’s trusted LAN or VPN.</p>
+    <form onSubmit={submit}><label className="field">Username<input autoFocus autoComplete="username" required value={username} onChange={e => setUsername(e.target.value)} placeholder="Your authorized username" maxLength={64} /></label>{passwordRequired && <label className="field">Password<input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Shared team password" maxLength={256} /></label>}<button className="primary" disabled={busy}>{busy ? 'Signing in…' : 'Enter workspace'}</button>{error && <p role="alert" className="error">{error}</p>}{expired && <p className="notice">Your session ended. Sign in again; local drafts are kept in this tab.</p>}</form><p className="hint">Your server admin manages the username list.<br />For your team’s trusted LAN or VPN.</p>
   </div></main>;
 }
 

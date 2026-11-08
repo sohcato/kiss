@@ -95,3 +95,22 @@ def test_credential_endpoints_require_a_session(client):
     assert saved.status_code == 200
     client.post('/api/logout')
     assert client.put(f"/api/credentials/{saved.json()['id']}", json={**payload, 'revision': 1}).status_code == 401
+
+
+def test_config_password_gates_login(tmp_path):
+    users = tmp_path / 'users.txt'
+    users.write_text('sohee\n')
+    config = tmp_path / 'config.toml'
+    config.write_text('password = "open-sesame"\n')
+    headers = {'X-Kiss-Request': '1'}
+    with TestClient(create_app(tmp_path / 'data', users, config)) as client:
+        assert client.get('/api/login').json()['password_required'] is True
+        assert client.post('/api/login', json={'username': 'sohee'}, headers=headers).status_code == 403
+        assert client.post('/api/login', json={'username': 'sohee', 'password': 'wrong'}, headers=headers).status_code == 403
+        assert client.post('/api/login', json={'username': 'sohee', 'password': 'open-sesame'}, headers=headers).status_code == 200
+        assert client.get('/api/state').status_code == 200
+
+
+def test_login_password_optional_when_unset(client):
+    assert client.get('/api/login').json()['password_required'] is False
+    assert client.post('/api/login', json={'username': 'sohee'}, headers={'X-Kiss-Request': '1'}).status_code == 200

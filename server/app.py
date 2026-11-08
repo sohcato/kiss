@@ -37,6 +37,7 @@ LIMIT = 20 * 1024 * 1024
 
 class Login(BaseModel):
     username: str = Field(min_length=1, max_length=64)
+    password: str = Field(default='', max_length=256)
 
 
 class DnsSettings(BaseModel):
@@ -102,6 +103,9 @@ def create_app(data_dir=None, users_file=None, config_file=None):
     admin_username = config.get('admin_username', '')
     if not isinstance(admin_username, str) or (admin_username and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', admin_username)):
         raise ValueError('config.toml admin_username must be a username of up to 64 letters, digits, dots, underscores or hyphens.')
+    login_password = config.get('password', '')
+    if not isinstance(login_password, str) or len(login_password) > 256:
+        raise ValueError('config.toml password must be a string of at most 256 characters. Leave it empty to disable the shared sign-in password.')
     data_dir.mkdir(parents=True, exist_ok=True)
     jobs = set()
     discovery_slot = asyncio.Semaphore(1)
@@ -215,11 +219,17 @@ def create_app(data_dir=None, users_file=None, config_file=None):
 
     install_automation(app, db, records, get, put, auth, activity, jobs, body)
 
+    @app.get('/api/login')
+    def login_options():
+        return {'password_required': bool(login_password)}
+
     @app.post('/api/login')
     def login(payload: Login, response: Response):
         username = payload.username.strip()
         if username not in users():
             raise HTTPException(403, 'Username is not on the server allowlist.')
+        if login_password and not secrets.compare_digest(payload.password, login_password):
+            raise HTTPException(403, 'Incorrect team password.')
         token = secrets.token_urlsafe(32)
         with db() as conn:
             conn.execute('DELETE FROM sessions WHERE expires<?', (time.time(),))
